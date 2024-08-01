@@ -3,7 +3,9 @@ import { Vex } from 'vexflow';
 import { onMounted, ref } from 'vue'
 import { Midi } from '@tonejs/midi'
 
-const { Renderer, Stave, StaveNote, Voice, Formatter } = Vex.Flow;
+const { Renderer, Stave, StaveNote, Voice, Formatter,Barline,TickContext } = Vex.Flow;
+
+const notes = ref([])
 
 const inputRef = ref();
 
@@ -34,79 +36,164 @@ const transformMidi = async (file) => {
   generateNotes(midiJson);
 }
 
-const generateNotes = (midiJson) => {
-  const div = document.getElementById("sheet");
-  const renderer = new Renderer(div, Renderer.Backends.SVG);
+const generateNotes = (midi) => { 
+    console.log("midi:", midi)
 
-  renderer.resize(500, 500);
-  const context = renderer.getContext();
+    const header = midi.header
+    const keySignature = header.keySignatures[0].key
+    const timeSignature1 = header.timeSignatures[0].timeSignature[0]
+    const timeSignature2 = header.timeSignatures[0].timeSignature[1]
+    const ppq = header.ppq 
 
-  const stave = new Stave(10, 40, 400);
+      // 获取第一个轨道的音符
+    const track = midi.tracks[0];
+    const notes = track.notes;
+    const length = notes.length
+    // 一行的音符个数 
+    const note_num = 24
+    const stave_num = Math.ceil(length / note_num)
 
-  stave.addClef("treble").addTimeSignature("4/4");
+    console.log('stave_num:',stave_num)
 
-  stave.setContext(context).draw();
-  const notes = [];
-  midiJson.tracks.forEach((track) => {
-    console.log('tracks:', track);
-    const tracksNote = track.notes;
-    notes.forEach((note) => {
-      const key = note.pitch + '/' + note.octave + '';
-      const duration = 'q';
-      const item = new StaveNote({ keys: key, duration, });
-      notes.push(item);
-    })
-  })
-  const voice = new Voice({ num_beats: 4, beat_value: 4 });
-      voice.addTickables(notes);
+    // 按照一行的note数量控制宽度
+    const canvasWidth = note_num * 50;
+    // 按照stave的个数控制render的长度
+    const canvasHeight = stave_num * 130
+    
+    // 使用 VexFlow 渲染五线谱
+    const div = document.getElementById("sheet");
+    const renderer = new Renderer(div, Renderer.Backends.SVG);
+    renderer.resize(canvasWidth, canvasHeight);
+    const context = renderer.getContext();
+    context.setFont("Arial", 10, "").setBackgroundFillStyle("#eed");
 
-      // Format and justify the notes to 400 pixels.
-      new Formatter().joinVoices([voice]).format([voice], 350);
+    const vexNotes = notes.map(note => {
+        return new StaveNote({
+            keys: [`${note.pitch}/4`],  // 默认四分音符
+            duration: 'q'
+        });
+    });
 
-    // Render voice
-      voice.draw(context, stave);
+    for (var i = 0; i < stave_num; i++) {
+      // 这里的120很重要，关系到两个stave之间的上下距离
+      const stave = new Stave(10, 120 * i + 50, canvasWidth - 20);  
+
+      // 添加起始小节分割线
+      stave.setBegBarType(Barline.type.REPEAT_BEGIN);
+
+      // 添加结尾小节分割线
+      stave.setEndBarType(Barline.type.DOUBLE);
+
+      // 在标准的MIDI文件中，并没有专门用来表示谱号（clef）的标记或者事件
+      stave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
+
+      stave.setContext(context).draw();
+
+      const staveNotes = vexNotes.slice(24*i, 24*(i+1));
+
+      Formatter.FormatAndDraw(context, stave, staveNotes)
+
+      // // 获取音符表中音符的宽度分布
+      // const tickContext = new TickContext().addTickable(staveNotes[0]).preFormat();
+      // const widthPerNote = tickContext.getWidth();
+
+      // // 计算插入小节分割线的位置
+      // const barlineX = stave.getX() + stave.getModifierXShift() + widthPerNote * 2;
+
+      // // 创建和绘制小节分割线
+      // const barline = new Barline(Barline.type.SINGLE, barlineX);
+      // barline.setContext(context);
+      // barline.checkContext();
+      // barline.draw();
+    }
+
+    // 在标准的MIDI文件中，并没有专门用来表示谱号（clef）的标记或者事件。
+    // stave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
+
+    // stave.setContext(context).draw();
+
+    //console.log('vexNotes:', vexNotes)
+
+    //const firstTenNotes = vexNotes.slice(0, 16);
+
+    // Formatter.FormatAndDraw(context,stave,vexNotes)
 }
 
-onMounted(() => {
+// const generateNotes = (midiJson) => {
+//   const div = document.getElementById("sheet");
+//   const renderer = new Renderer(div, Renderer.Backends.SVG);
 
-const div = document.getElementById("output");
-const renderer = new Renderer(div, Renderer.Backends.SVG);
+//   renderer.resize(500, 500);
+//   const context = renderer.getContext();
 
-renderer.resize(500, 500);
-const context = renderer.getContext();
+//   const stave = new Stave(10, 40, 400);
 
-const stave = new Stave(10, 40, 400);
+//   stave.addClef("treble").addTimeSignature("4/4");
 
-stave.addClef("treble").addTimeSignature("4/4");
+//   stave.setContext(context).draw();
+//   const notes = [];
+//   midiJson.tracks.forEach((track) => {
+//     console.log('tracks:', track);
+//     const tracksNote = track.notes;
+//     notes.forEach((note) => {
+//       const key = note.pitch + '/' + note.octave + '';
+//       console.log('key:',key)
+//       const duration = 'q';
+//       console.log('duration',duration)
+//       const item = new StaveNote({ keys: key, duration, });
+//       notes.push(item);
+//     })
+//   })
+//   const voice = new Voice({ num_beats: 4, beat_value: 4 });
+//       voice.addTickables(notes);
 
-stave.setContext(context).draw();
+//       // Format and justify the notes to 400 pixels.
+//       new Formatter().joinVoices([voice]).format([voice], 350);
 
-// Create the notes
-const notes = [
-    // A quarter-note C.
-    new StaveNote({ keys: ["c/4"], duration: "q" }),
+//     // Render voice
+//       voice.draw(context, stave);
+// }
 
-    // A quarter-note D.
-    new StaveNote({ keys: ["d/4"], duration: "q" }),
+// onMounted(() => {
 
-    // A quarter-note rest. Note that the key (b/4) specifies the vertical
-    // position of the rest.
-    new StaveNote({ keys: ["b/4"], duration: "qr" }),
+// const div = document.getElementById("output");
+// const renderer = new Renderer(div, Renderer.Backends.SVG);
 
-    // A C-Major chord.
-    new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" }),
-];
+// renderer.resize(500, 500);
+// const context = renderer.getContext();
 
-// Create a voice in 4/4 and add above notes
-const voice = new Voice({ num_beats: 4, beat_value: 4 });
-voice.addTickables(notes);
+// const stave = new Stave(10, 40, 400);
 
-// Format and justify the notes to 400 pixels.
-new Formatter().joinVoices([voice]).format([voice], 350);
+// stave.addClef("treble").addTimeSignature("4/4");
 
-// Render voice
-voice.draw(context, stave);
-})
+// stave.setContext(context).draw();
+
+// // Create the notes
+// const notes = [
+//     // A quarter-note C.
+//     new StaveNote({ keys: ["c/4"], duration: "q" }),
+
+//     // A quarter-note D.
+//     new StaveNote({ keys: ["d/4"], duration: "q" }),
+
+//     // A quarter-note rest. Note that the key (b/4) specifies the vertical
+//     // position of the rest.
+//     new StaveNote({ keys: ["b/4"], duration: "qr" }),
+
+//     // A C-Major chord.
+//     new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" }),
+// ];
+
+// // Create a voice in 4/4 and add above notes
+// const voice = new Voice({ num_beats: 4, beat_value: 4 });
+// voice.addTickables(notes);
+
+// // Format and justify the notes to 400 pixels.
+// new Formatter().joinVoices([voice]).format([voice], 350);
+
+// // Render voice
+// voice.draw(context, stave);
+// })
 
 </script>
 
