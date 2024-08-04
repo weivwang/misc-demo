@@ -2,8 +2,9 @@
 import { Vex } from 'vexflow';
 import { onMounted, ref } from 'vue'
 import { Midi } from '@tonejs/midi'
+import { generateStaveNotes } from './utils/convert'
 
-const { Renderer, Stave, StaveNote, Voice, Formatter,Barline,TickContext } = Vex.Flow;
+const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, StaveConnector } = Vex.Flow;
 
 //const notes = ref([])
 
@@ -11,14 +12,6 @@ const inputRef = ref();
 
 const viewWidth = ref(0);
 
-// 定义音符时值枚举对象
-const NoteDurations = Object.freeze({
-  1: 'q',   // 四分音符
-  0.5: '8', // 八分音符
-  0.25: '16', // 十六分音符
-  2: 'h',   // 二分音符
-  4: 'w'    // 全音符
-});
 
 const triggerFileChose = () => {
   inputRef.value.click();
@@ -57,12 +50,7 @@ const transformMidi = async (file) => {
   generateNotes(midiJson);
 }
 
-// 计算近似值，处理duration
-const approximateToSet = (value, targetSet) => {
-  return targetSet.reduce((prev, curr) =>
-    Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
-  );
-}
+
 
 // const groupedNotes = notes.reduce((groups, note) => {
 //   if (!groups[note.tick]) {
@@ -81,15 +69,15 @@ const generateNotes = (midi) => {
     const timeSignature2 = header.timeSignatures[0].timeSignature[1]
     const ppq = header.ppq 
 
-      // 获取第一个轨道的音符
-    const track1 = midi.tracks[0];
-    const notes1 = track1.notes;
-    const length1 = notes1.length
+    // 高音谱表的tarck
+    const trebleTrack = midi.tracks[0];
+    const trebleNotes = trebleTrack.notes;
+    const trebleNotesLength = trebleNotes.length
     // 视窗宽度 - 100 全部取视窗宽度会被遮挡
-    const width = viewWidth.value - 100;
-    // 一行的音符个数 100 表示间隔
+    const width = viewWidth.value - 90;
+    // 一行的音符个数 , 50 表示间隔
     const note_num = Math.ceil(width / 50);
-    const stave_num = Math.ceil(length1 / note_num)
+    const stave_num = Math.ceil(trebleNotesLength / note_num)
 
     console.log('stave_num:',stave_num)
 
@@ -105,49 +93,56 @@ const generateNotes = (midi) => {
     const context = renderer.getContext();
     context.setFont("Arial", 10, "").setBackgroundFillStyle("#eed");
 
-    const vexNotes = notes1.map(note => {
-      const durationTicks = note.durationTicks
-      const targetValues = [0.25, 0.5, 1, 2, 4];
-      let result = durationTicks/ppq
-      let approximatedResult = approximateToSet(result, targetValues);
-      
-      if (!targetValues.includes(approximatedResult)) {
-        console.log(note)
-      }
-      
-      return new StaveNote({
-            keys: [`${note.pitch}/${note.octave}`],  // 音高/八度
-            duration: NoteDurations[approximatedResult]
-      });
-    });
+    // 高音谱表
+    const vexTrebleNotes = generateStaveNotes(trebleNotes, ppq);
+
+    // 低音谱表
+    const bassNotes = midi.tracks[1].notes;
+    const vexBassNotes = generateStaveNotes(bassNotes, ppq);
 
     // 每一行距离左侧的距离
     const staveOffsetX  = 10;
     // 第一行离顶部的距离
-    const staveOffsetY  = 50;
+    const staveOffsetY  = 70;
 
     // 每一行的高度
-    const staveHeight = 120;
+    const staveHeight = 80;
+
 
     for (var i = 0; i < stave_num; i++) {
       
       // canvas - 20 是为了美观
-      const stave = new Stave(staveOffsetX, staveHeight * i + staveOffsetY, canvasWidth - 20);  
+      const trebleStave = new Stave(staveOffsetX, (staveHeight + staveOffsetY) * 2 * i + staveOffsetY, canvasWidth - 20, 'treble'); 
+      
+      const bassStave = new Stave(staveOffsetX, (staveHeight + staveOffsetY) * 2 * i  + staveOffsetY * 2, canvasWidth - 20, 'bass');
 
       // 添加起始小节分割线
-      stave.setBegBarType(Barline.type.REPEAT_BEGIN);
+      trebleStave.setBegBarType(Barline.type.REPEAT_BEGIN);
 
       // 添加结尾小节分割线
-      stave.setEndBarType(Barline.type.DOUBLE);
+      trebleStave.setEndBarType(Barline.type.DOUBLE);
 
       // 在标准的MIDI文件中，并没有专门用来表示谱号（clef）的标记或者事件
-      stave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
+      trebleStave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
 
-      stave.setContext(context).draw();
+      trebleStave.setContext(context).draw();
 
-      const staveNotes = vexNotes.slice(note_num*i, note_num*(i+1));
+      bassStave.setBegBarType(Barline.type.REPEAT_BEGIN);
+      bassStave.setEndBarType(Barline.type.DOUBLE);
+      bassStave.addClef("bass").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
+      bassStave.setContext(context).draw();
 
-      Formatter.FormatAndDraw(context, stave, staveNotes)
+      const trebleStaveNotes = vexTrebleNotes.slice(note_num*i, note_num*(i+1));
+
+      const bassStaveNotes = vexBassNotes.slice(note_num*i, note_num*(i+1));
+
+      Formatter.FormatAndDraw(context, trebleStave, trebleStaveNotes);
+      Formatter.FormatAndDraw(context, bassStave, bassStaveNotes);
+
+
+      const connector = new StaveConnector(trebleStave, bassStave);
+      connector.setType(StaveConnector.type.BRACE);
+      connector.setContext(context).draw();
 
       // 获取音符表中音符的宽度分布
       // const tickContext = new TickContext().addTickable(staveNotes[0]).preFormat();
