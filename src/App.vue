@@ -52,14 +52,6 @@ const approximateToSet = (value, targetSet) => {
   );
 }
 
-// const groupedNotes = notes.reduce((groups, note) => {
-//   if (!groups[note.tick]) {
-//     groups[note.tick] = [];
-//   }
-//   groups[note.tick].push(note);
-//   return groups;
-// }, {});
-
 const generateNotes = (midi) => { 
     console.log("midi:", midi)
 
@@ -72,7 +64,25 @@ const generateNotes = (midi) => {
       // 获取第一个轨道的音符
     const track1 = midi.tracks[0];
     const notes1 = track1.notes;
-    const length1 = notes1.length
+
+    let noteMap1 = new Map();
+    notes1.forEach(note => {
+      //console.log('note:',note)
+      const tick = note.ticks;
+  
+      // 检查 Map 中是否已有该 tick 的键
+      if (noteMap1.has(tick)) {
+        // 如果有，获取现有的数组并添加新的 note
+        noteMap1.get(tick).push(note);
+      } else {
+        // 如果没有，创建一个新的数组，并添加到 Map 中
+        noteMap1.set(tick, [note]);
+      }
+    });
+
+    console.log('noteMap:',noteMap1)
+    
+    const length1 = noteMap1.size
     // 一行的音符个数 
     const note_num = 24
     const stave_num = Math.ceil(length1 / note_num)
@@ -91,21 +101,49 @@ const generateNotes = (midi) => {
     const context = renderer.getContext();
     context.setFont("Arial", 10, "").setBackgroundFillStyle("#eed");
 
-    const vexNotes = notes1.map(note => {
-      const durationTicks = note.durationTicks
+    let vexNotes = [];
+    noteMap1.forEach((noteArray, tick) => {
+      let keysArray = []
+      const durationTicks = noteArray[0].durationTicks
       const targetValues = [0.25, 0.5, 1, 2, 4];
       let result = durationTicks/ppq
       let approximatedResult = approximateToSet(result, targetValues);
-      
-      if (!targetValues.includes(approximatedResult)) {
-        console.log(note)
-      }
-      
-      return new StaveNote({
-            keys: [`${note.pitch}/4`],  // 音高/八度
-            duration: NoteDurations[approximatedResult]
+
+      noteArray.forEach(note => {
+          keysArray.push(`${note.pitch}/${note.octave}`)
       });
+      console.log(keysArray)
+      // 创建 VexFlow 的 StaveNote
+      const staveNote = new StaveNote({
+        keys: keysArray, 
+        duration: NoteDurations[approximatedResult]
+      });
+
+      // 添加到 notes 数组
+      vexNotes.push(staveNote);
     });
+
+    console.log('vexNotes:',vexNotes)
+
+    // 创建一个 Voice 并添加 notes
+    // const voice = new Voice({ num_beats: 4, beat_value: 4 });
+    // voice.addTickables(vexNotes);
+
+    // const vexNotes = notes1.map(note => {
+    //   const durationTicks = note.durationTicks
+    //   const targetValues = [0.25, 0.5, 1, 2, 4];
+    //   let result = durationTicks/ppq
+    //   let approximatedResult = approximateToSet(result, targetValues);
+      
+    //   if (!targetValues.includes(approximatedResult)) {
+    //     console.log(note)
+    //   }
+      
+    //   return new StaveNote({
+    //         keys: [`${note.pitch}/${note.octave}`],  // 音高/八度
+    //         duration: NoteDurations[approximatedResult]
+    //   });
+    // });
 
     for (var i = 0; i < stave_num; i++) {
       // 这里的120很重要，关系到两个stave之间的上下距离
@@ -139,17 +177,6 @@ const generateNotes = (midi) => {
       // barline.checkContext();
       // barline.draw();
     }
-
-    // 在标准的MIDI文件中，并没有专门用来表示谱号（clef）的标记或者事件。
-    // stave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
-
-    // stave.setContext(context).draw();
-
-    //console.log('vexNotes:', vexNotes)
-
-    //const firstTenNotes = vexNotes.slice(0, 16);
-
-    // Formatter.FormatAndDraw(context,stave,vexNotes)
 }
 
 // const generateNotes = (midiJson) => {
