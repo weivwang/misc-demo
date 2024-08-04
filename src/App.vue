@@ -5,9 +5,18 @@ import { Midi } from '@tonejs/midi'
 
 const { Renderer, Stave, StaveNote, Voice, Formatter,Barline,TickContext } = Vex.Flow;
 
-const notes = ref([])
+//const notes = ref([])
 
 const inputRef = ref();
+
+// 定义音符时值枚举对象
+const NoteDurations = Object.freeze({
+  1: 'q',   // 四分音符
+  0.5: '8', // 八分音符
+  0.25: '16', // 十六分音符
+  2: 'h',   // 二分音符
+  4: 'w'    // 全音符
+});
 
 const triggerFileChose = () => {
   inputRef.value.click();
@@ -36,6 +45,21 @@ const transformMidi = async (file) => {
   generateNotes(midiJson);
 }
 
+// 计算近似值，处理duration
+const approximateToSet = (value, targetSet) => {
+  return targetSet.reduce((prev, curr) =>
+    Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+  );
+}
+
+// const groupedNotes = notes.reduce((groups, note) => {
+//   if (!groups[note.tick]) {
+//     groups[note.tick] = [];
+//   }
+//   groups[note.tick].push(note);
+//   return groups;
+// }, {});
+
 const generateNotes = (midi) => { 
     console.log("midi:", midi)
 
@@ -46,12 +70,12 @@ const generateNotes = (midi) => {
     const ppq = header.ppq 
 
       // 获取第一个轨道的音符
-    const track = midi.tracks[0];
-    const notes = track.notes;
-    const length = notes.length
+    const track1 = midi.tracks[0];
+    const notes1 = track1.notes;
+    const length1 = notes1.length
     // 一行的音符个数 
     const note_num = 24
-    const stave_num = Math.ceil(length / note_num)
+    const stave_num = Math.ceil(length1 / note_num)
 
     console.log('stave_num:',stave_num)
 
@@ -67,11 +91,20 @@ const generateNotes = (midi) => {
     const context = renderer.getContext();
     context.setFont("Arial", 10, "").setBackgroundFillStyle("#eed");
 
-    const vexNotes = notes.map(note => {
-        return new StaveNote({
-            keys: [`${note.pitch}/4`],  // 默认四分音符
-            duration: 'q'
-        });
+    const vexNotes = notes1.map(note => {
+      const durationTicks = note.durationTicks
+      const targetValues = [0.25, 0.5, 1, 2, 4];
+      let result = durationTicks/ppq
+      let approximatedResult = approximateToSet(result, targetValues);
+      
+      if (!targetValues.includes(approximatedResult)) {
+        console.log(note)
+      }
+      
+      return new StaveNote({
+            keys: [`${note.pitch}/4`],  // 音高/八度
+            duration: NoteDurations[approximatedResult]
+      });
     });
 
     for (var i = 0; i < stave_num; i++) {
