@@ -9,6 +9,8 @@ const { Renderer, Stave, StaveNote, Voice, Formatter,Barline,TickContext } = Vex
 
 const inputRef = ref();
 
+const viewWidth = ref(0);
+
 // 定义音符时值枚举对象
 const NoteDurations = Object.freeze({
   1: 'q',   // 四分音符
@@ -26,6 +28,16 @@ const handleChoseFile =  async (event) => {
   const file = event.target.files[0];
   console.log('files:', file);
   await transformMidi(file)
+}
+
+
+// 监听屏幕旋转
+const listScreenRotate = () => {
+  window.addEventListener('resize', updateViewWidth)
+}
+
+const updateViewWidth = () => {
+  viewWidth.value = document.documentElement.clientWidth;
 }
 
 const readFileAsArrayBuffer = (file) => {
@@ -73,14 +85,16 @@ const generateNotes = (midi) => {
     const track1 = midi.tracks[0];
     const notes1 = track1.notes;
     const length1 = notes1.length
-    // 一行的音符个数 
-    const note_num = 24
+    // 视窗宽度 - 100 全部取视窗宽度会被遮挡
+    const width = viewWidth.value - 100;
+    // 一行的音符个数 100 表示间隔
+    const note_num = Math.ceil(width / 50);
     const stave_num = Math.ceil(length1 / note_num)
 
     console.log('stave_num:',stave_num)
 
     // 按照一行的note数量控制宽度
-    const canvasWidth = note_num * 50;
+    const canvasWidth =  width;
     // 按照stave的个数控制render的长度
     const canvasHeight = stave_num * 130
     
@@ -102,14 +116,23 @@ const generateNotes = (midi) => {
       }
       
       return new StaveNote({
-            keys: [`${note.pitch}/4`],  // 音高/八度
+            keys: [`${note.pitch}/${note.octave}`],  // 音高/八度
             duration: NoteDurations[approximatedResult]
       });
     });
 
+    // 每一行距离左侧的距离
+    const staveOffsetX  = 10;
+    // 第一行离顶部的距离
+    const staveOffsetY  = 50;
+
+    // 每一行的高度
+    const staveHeight = 120;
+
     for (var i = 0; i < stave_num; i++) {
-      // 这里的120很重要，关系到两个stave之间的上下距离
-      const stave = new Stave(10, 120 * i + 50, canvasWidth - 20);  
+      
+      // canvas - 20 是为了美观
+      const stave = new Stave(staveOffsetX, staveHeight * i + staveOffsetY, canvasWidth - 20);  
 
       // 添加起始小节分割线
       stave.setBegBarType(Barline.type.REPEAT_BEGIN);
@@ -122,11 +145,11 @@ const generateNotes = (midi) => {
 
       stave.setContext(context).draw();
 
-      const staveNotes = vexNotes.slice(24*i, 24*(i+1));
+      const staveNotes = vexNotes.slice(note_num*i, note_num*(i+1));
 
       Formatter.FormatAndDraw(context, stave, staveNotes)
 
-      // // 获取音符表中音符的宽度分布
+      // 获取音符表中音符的宽度分布
       // const tickContext = new TickContext().addTickable(staveNotes[0]).preFormat();
       // const widthPerNote = tickContext.getWidth();
 
@@ -140,16 +163,6 @@ const generateNotes = (midi) => {
       // barline.draw();
     }
 
-    // 在标准的MIDI文件中，并没有专门用来表示谱号（clef）的标记或者事件。
-    // stave.addClef("treble").addTimeSignature(`${timeSignature1}/${timeSignature2}`).addKeySignature(keySignature);
-
-    // stave.setContext(context).draw();
-
-    //console.log('vexNotes:', vexNotes)
-
-    //const firstTenNotes = vexNotes.slice(0, 16);
-
-    // Formatter.FormatAndDraw(context,stave,vexNotes)
 }
 
 // const generateNotes = (midiJson) => {
@@ -187,46 +200,12 @@ const generateNotes = (midi) => {
 //       voice.draw(context, stave);
 // }
 
-// onMounted(() => {
-
-// const div = document.getElementById("output");
-// const renderer = new Renderer(div, Renderer.Backends.SVG);
-
-// renderer.resize(500, 500);
-// const context = renderer.getContext();
-
-// const stave = new Stave(10, 40, 400);
-
-// stave.addClef("treble").addTimeSignature("4/4");
-
-// stave.setContext(context).draw();
-
-// // Create the notes
-// const notes = [
-//     // A quarter-note C.
-//     new StaveNote({ keys: ["c/4"], duration: "q" }),
-
-//     // A quarter-note D.
-//     new StaveNote({ keys: ["d/4"], duration: "q" }),
-
-//     // A quarter-note rest. Note that the key (b/4) specifies the vertical
-//     // position of the rest.
-//     new StaveNote({ keys: ["b/4"], duration: "qr" }),
-
-//     // A C-Major chord.
-//     new StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" }),
-// ];
-
-// // Create a voice in 4/4 and add above notes
-// const voice = new Voice({ num_beats: 4, beat_value: 4 });
-// voice.addTickables(notes);
-
-// // Format and justify the notes to 400 pixels.
-// new Formatter().joinVoices([voice]).format([voice], 350);
-
-// // Render voice
-// voice.draw(context, stave);
-// })
+onMounted(() => {
+  // 初始化宽度
+  updateViewWidth();
+  // 监听屏幕旋转
+  listScreenRotate();
+})
 
 </script>
 
