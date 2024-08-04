@@ -4,7 +4,8 @@ import { onMounted, ref } from 'vue'
 import { Midi } from '@tonejs/midi'
 import { generateStaveNotes,generateTickMap } from './utils/convert'
 
-const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, StaveConnector } = Vex.Flow;
+const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, StaveConnector,
+  Accidental, Beam, Dot} = Vex.Flow;
 
 //const notes = ref([])
 
@@ -136,9 +137,23 @@ const generateNotes = (midi) => {
 
       const bassStaveNotes = vexBassNotes.slice(note_num*i, note_num*(i+1));
 
+      //增加符梁、调整符干方向
+      const beams_treble = Beam.generateBeams(trebleStaveNotes)
+      const beams_bass = Beam.generateBeams(bassStaveNotes)
+
       Formatter.FormatAndDraw(context, trebleStave, trebleStaveNotes);
       Formatter.FormatAndDraw(context, bassStave, bassStaveNotes);
 
+      beams_treble.forEach((b) => {
+      b.setContext(context).draw();
+      });
+      beams_bass.forEach((b) => {
+      b.setContext(context).draw();
+      });
+      function dotted(note) {// A helper function to add a dot to a note.
+        Dot.buildAndAttach([note]);
+        return note;
+      }
 
       const connector = new StaveConnector(trebleStave, bassStave);
       connector.setType(StaveConnector.type.BRACE);
