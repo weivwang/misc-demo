@@ -105,10 +105,10 @@ const generateNotes = (midi) => {
     // 每一行距离左侧的距离
     const staveOffsetX  = 10;
     // 第一行离顶部的距离
-    const staveOffsetY  = 70;
+    const staveOffsetY  = 100;
 
     // 每一行的高度
-    const staveHeight = 80;
+    const staveHeight = 50;
 
     for (var i = 0; i < stave_num; i++) {
       
