@@ -2,14 +2,17 @@ import { StaveNote } from "vexflow";
 
 // 定义音符时值枚举对象
 const NoteDurations = Object.freeze({
-    1: 'q',   // 四分音符
-    0.5: '8', // 八分音符
+    0.03125: '128', // 128分音符
+    0.0625: '64', // 六十四分音符
+    0.125: '32', // 三十二分音符
     0.25: '16', // 十六分音符
+    0.5: '8', // 八分音符
+    1: 'q',   // 四分音符
     2: 'h',   // 二分音符
     4: 'w'    // 全音符
 });
   
-const targetValues = [0.25, 0.5, 1, 2, 4];
+const targetValues = [0.03125, 0.0625, 0.125, 0.25, 0.5, 1, 2, 4];
 
 // 计算近似值，处理duration
 const approximateToSet = (value, targetSet) => {
@@ -54,6 +57,9 @@ export const generateTickMap = (notes) => {
     let tickMap = new Map();
   
     notes.forEach(note => {
+      const noteoff = note.noteOffVelocity
+      if(noteoff != 0) console.log('noteoff:',note)
+
       //console.log('note:',note)
       const tick = note.ticks;
   
