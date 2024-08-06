@@ -12,11 +12,19 @@ const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, Stave
 
 const inputRef = ref();
 
+const inputXMLRef = ref();
+
 const viewWidth = ref(0);
 
+const osmdContainer = ref(null);
+let osmd = null;
 
 const triggerFileChose = () => {
   inputRef.value.click();
+}
+
+const triggerMXLFileChose = () => {
+  inputXMLRef.value.click();
 }
 
 const handleChoseFile =  async (event) => {
@@ -24,6 +32,22 @@ const handleChoseFile =  async (event) => {
   console.log('files:', file);
   await transformMidi(file)
 }
+
+const handleChoseMXLFile = async (event) => {
+  const file = event.target.files[0];
+  console.log('files:', file);
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const musicXML = e.target.result;
+      await osmd.load(musicXML);
+      osmd.render();
+    };
+    reader.readAsText(file);
+  }
+  
+}
+
 
 // 监听屏幕旋转
 const listScreenRotate = () => {
@@ -180,52 +204,38 @@ onMounted(() => {
   // 监听屏幕旋转
   listScreenRotate();
 
-  var osmd = new OpenSheetMusicDisplay("osmdContainer");
+  osmd = new OpenSheetMusicDisplay("osmdContainer");
   osmd.setOptions({
     backend: "svg",
     drawTitle: true,
+    autoResize: true,
     // drawingParameters: "compacttight" // don't display title, composer etc., smaller margins
   });
-  osmd
-    .load("src//assets//xml//MozaVeilSample.xml")
-    .then(
-      function() {
-        osmd.render();
-      }
-    );
 })
 
 </script>
 
 <template>
   <div id='test'>
-    <div>
+    <div class="btn">
       <button @click="triggerFileChose">上传midi文件
       </button>
+      <button @click="triggerMXLFileChose">上传MXL文件
+      </button>
+      
       <input @change="handleChoseFile" ref="inputRef" type="file" accept=".mid,.midi" id="fileUpload" hidden />
+      <input @change="handleChoseMXLFile" ref="inputXMLRef" type="file" accept=".xml" hidden />
     </div>
-    <div id="output"></div>
     <div id="sheet"></div>
     <div id="osmdContainer"></div>
   </div>
 </template>
 
 <style scoped>
-.test {
+.btn {
+  width: 1280px;
   display: flex;
-  flex-direction: colum;
+  flex-direction: column;
   align-items: center;
-}
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
 }
 </style>
