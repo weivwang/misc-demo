@@ -2,7 +2,8 @@
 import { Vex } from 'vexflow';
 import { onMounted, ref } from 'vue'
 import { Midi } from '@tonejs/midi'
-import { generateStaveNotes,generateTickMap } from './utils/convert'
+import { generateStaveNotes, generateTickMap } from './utils/convert'
+import { OpenSheetMusicDisplay } from "opensheetmusicdisplay"
 
 const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, StaveConnector,
   Accidental, Beam, Dot} = Vex.Flow;
@@ -23,7 +24,6 @@ const handleChoseFile =  async (event) => {
   console.log('files:', file);
   await transformMidi(file)
 }
-
 
 // 监听屏幕旋转
 const listScreenRotate = () => {
@@ -179,6 +179,20 @@ onMounted(() => {
   updateViewWidth();
   // 监听屏幕旋转
   listScreenRotate();
+
+  var osmd = new OpenSheetMusicDisplay("osmdContainer");
+  osmd.setOptions({
+    backend: "svg",
+    drawTitle: true,
+    // drawingParameters: "compacttight" // don't display title, composer etc., smaller margins
+  });
+  osmd
+    .load("src//assets//xml//MozaVeilSample.xml")
+    .then(
+      function() {
+        osmd.render();
+      }
+    );
 })
 
 </script>
@@ -192,6 +206,7 @@ onMounted(() => {
     </div>
     <div id="output"></div>
     <div id="sheet"></div>
+    <div id="osmdContainer"></div>
   </div>
 </template>
 
