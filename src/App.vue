@@ -220,7 +220,7 @@ onMounted(() => {
     <div class="btn">
       <button @click="triggerFileChose">上传midi文件
       </button>
-      <button @click="triggerMXLFileChose">上传MXL文件
+      <button @click="triggerMXLFileChose">上传XML文件
       </button>
       
       <input @change="handleChoseFile" ref="inputRef" type="file" accept=".mid,.midi" id="fileUpload" hidden />
