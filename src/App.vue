@@ -2,7 +2,8 @@
 import { Vex } from 'vexflow';
 import { onMounted, ref } from 'vue'
 import { Midi } from '@tonejs/midi'
-import { generateStaveNotes,generateTickMap } from './utils/convert'
+import { generateStaveNotes, generateTickMap } from './utils/convert'
+import { OpenSheetMusicDisplay } from "opensheetmusicdisplay"
 
 const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, StaveConnector,
   Accidental, Beam, Dot} = Vex.Flow;
@@ -11,17 +12,40 @@ const { Renderer, Stave, StaveNote, Voice, Formatter,Barline, TickContext, Stave
 
 const inputRef = ref();
 
+const inputXMLRef = ref();
+
 const viewWidth = ref(0);
 
+const osmdContainer = ref(null);
+let osmd = null;
 
 const triggerFileChose = () => {
   inputRef.value.click();
+}
+
+const triggerMXLFileChose = () => {
+  inputXMLRef.value.click();
 }
 
 const handleChoseFile =  async (event) => {
   const file = event.target.files[0];
   console.log('files:', file);
   await transformMidi(file)
+}
+
+const handleChoseMXLFile = async (event) => {
+  const file = event.target.files[0];
+  console.log('files:', file);
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const musicXML = e.target.result;
+      await osmd.load(musicXML);
+      osmd.render();
+    };
+    reader.readAsText(file);
+  }
+  
 }
 
 
@@ -105,10 +129,10 @@ const generateNotes = (midi) => {
     // 每一行距离左侧的距离
     const staveOffsetX  = 10;
     // 第一行离顶部的距离
-    const staveOffsetY  = 70;
+    const staveOffsetY  = 100;
 
     // 每一行的高度
-    const staveHeight = 80;
+    const staveHeight = 50;
 
     for (var i = 0; i < stave_num; i++) {
       
@@ -179,38 +203,39 @@ onMounted(() => {
   updateViewWidth();
   // 监听屏幕旋转
   listScreenRotate();
+
+  osmd = new OpenSheetMusicDisplay("osmdContainer");
+  osmd.setOptions({
+    backend: "svg",
+    drawTitle: true,
+    autoResize: true,
+    // drawingParameters: "compacttight" // don't display title, composer etc., smaller margins
+  });
 })
 
 </script>
 
 <template>
   <div id='test'>
-    <div>
+    <div class="btn">
       <button @click="triggerFileChose">上传midi文件
       </button>
+      <button @click="triggerMXLFileChose">上传XML文件
+      </button>
+      
       <input @change="handleChoseFile" ref="inputRef" type="file" accept=".mid,.midi" id="fileUpload" hidden />
+      <input @change="handleChoseMXLFile" ref="inputXMLRef" type="file" accept=".xml" hidden />
     </div>
-    <div id="output"></div>
     <div id="sheet"></div>
+    <div id="osmdContainer"></div>
   </div>
 </template>
 
 <style scoped>
-.test {
+.btn {
+  width: 1280px;
   display: flex;
-  flex-direction: colum;
+  flex-direction: column;
   align-items: center;
-}
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
 }
 </style>

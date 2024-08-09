@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
+    "opensheetmusicdisplay": "^1.8.9",
     "vexflow": "^4.2.5",
     "vue": "^3.4.31"
   },
