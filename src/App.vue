@@ -18,7 +18,7 @@ const viewWidth = ref(0);
 
 const osmdContainer = ref(null);
 let osmd = null;
-
+let cursor=null;
 const triggerFileChose = () => {
   inputRef.value.click();
 }
@@ -33,6 +33,18 @@ const handleChoseFile =  async (event) => {
   await transformMidi(file)
 }
 
+const afterRender = async (event) => {//光标
+cursor = osmd.cursor;
+cursor.show();
+cursor.next();
+const cursorVoiceEntry = cursor.Iterator.CurrentVoiceEntries[0];
+const lowestVoiceEntryNote = cursorVoiceEntry.Notes[0];
+}
+const nextNote =  async (event) => {//光标移动
+  cursor.next();
+  // osmd.cursor.GNotesUnderCursor()[0].getSVGGElement().children[0].children[0].children[0].style.stroke = "#0000FF"; // stem
+  // osmd.cursor.GNotesUnderCursor()[0].getSVGGElement().children[0].children[0].children[0].style.fill = "#0000FF"; // stem符干变色
+}
 const handleChoseMXLFile = async (event) => {
   const file = event.target.files[0];
   console.log('files:', file);
@@ -42,6 +54,7 @@ const handleChoseMXLFile = async (event) => {
       const musicXML = e.target.result;
       await osmd.load(musicXML);
       osmd.render();
+      afterRender();
     };
     reader.readAsText(file);
   }
@@ -211,6 +224,7 @@ onMounted(() => {
     autoResize: true,
     // drawingParameters: "compacttight" // don't display title, composer etc., smaller margins
   });
+
 })
 
 </script>
@@ -222,9 +236,11 @@ onMounted(() => {
       </button>
       <button @click="triggerMXLFileChose">上传XML文件
       </button>
-      
+      <button @click="nextNote">下一个音符
+      </button>
       <input @change="handleChoseFile" ref="inputRef" type="file" accept=".mid,.midi" id="fileUpload" hidden />
       <input @change="handleChoseMXLFile" ref="inputXMLRef" type="file" accept=".xml" hidden />
+
     </div>
     <div id="sheet"></div>
     <div id="osmdContainer"></div>
