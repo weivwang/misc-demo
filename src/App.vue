@@ -16,8 +16,19 @@ const inputXMLRef = ref();
 
 const viewWidth = ref(0);
 
+const showMidiSheet = ref(false);
+
+const showXMLSheet = ref(false);
+
 const osmdContainer = ref(null);
 let osmd = null;
+
+const btnWidth = ref(document.documentElement.clientWidth - 100);
+
+const updateBtnWidth = () => {
+  btnWidth.value = document.documentElement.clientWidth - 100;
+};
+
 
 const triggerFileChose = () => {
   inputRef.value.click();
@@ -30,12 +41,16 @@ const triggerMXLFileChose = () => {
 const handleChoseFile =  async (event) => {
   const file = event.target.files[0];
   console.log('files:', file);
+  showMidiSheet.value = true;
+  showXMLSheet.value = false;
   await transformMidi(file)
 }
 
 const handleChoseMXLFile = async (event) => {
   const file = event.target.files[0];
   console.log('files:', file);
+  showMidiSheet.value = false;
+  showXMLSheet.value = true;
   if (file) {
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -56,6 +71,7 @@ const listScreenRotate = () => {
 
 const updateViewWidth = () => {
   viewWidth.value = document.documentElement.clientWidth;
+  updateBtnWidth();
 }
 
 const readFileAsArrayBuffer = (file) => {
@@ -121,6 +137,7 @@ const generateNotes = (midi) => {
     
     // 使用 VexFlow 渲染五线谱
     const div = document.getElementById("sheet");
+    div.innerHTML = '';
     const renderer = new Renderer(div, Renderer.Backends.SVG);
     renderer.resize(canvasWidth, canvasHeight);
     const context = renderer.getContext();
@@ -217,7 +234,7 @@ onMounted(() => {
 
 <template>
   <div id='test'>
-    <div class="btn">
+    <div id="btn" :style="{ width: btnWidth + 'px' }">
       <button @click="triggerFileChose">上传midi文件
       </button>
       <button @click="triggerMXLFileChose">上传XML文件
@@ -226,16 +243,16 @@ onMounted(() => {
       <input @change="handleChoseFile" ref="inputRef" type="file" accept=".mid,.midi" id="fileUpload" hidden />
       <input @change="handleChoseMXLFile" ref="inputXMLRef" type="file" accept=".xml" hidden />
     </div>
-    <div id="sheet"></div>
-    <div id="osmdContainer"></div>
+    <div id="sheet" v-show='showMidiSheet'></div>
+    <div id="osmdContainer" v-show="showXMLSheet"></div>
   </div>
 </template>
 
 <style scoped>
-.btn {
-  width: 1280px;
+#btn {
+  width: 600px;
   display: flex;
-  flex-direction: column;
+  justify-content: space-evenly;
   align-items: center;
 }
 </style>
